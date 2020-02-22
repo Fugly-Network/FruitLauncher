@@ -1,16 +1,14 @@
 /*
- * Decompiled with CFR 0_132.
- * 
- * Could not load the following classes:
- *  lombok.NonNull
+ * SK's Minecraft Launcher
+ * Copyright (C) 2010-2014 Albert Pham <http://www.sk89q.com> and contributors
+ * Please see LICENSE.txt for license information.
  */
+
 package com.skcraft.launcher.dialog;
 
-import com.skcraft.launcher.swing.LinedBoxPanel;
-import com.skcraft.launcher.swing.MessageLog;
-import com.skcraft.launcher.swing.SwingHelper;
-import com.skcraft.launcher.util.PastebinPoster;
-import com.skcraft.launcher.util.SharedLocale;
+import static com.skcraft.launcher.util.SharedLocale.*;
+
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -18,130 +16,171 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.awt.image.BufferedImage;
 import java.util.List;
+
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JFrame;
-import javax.swing.border.Border;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.SimpleAttributeSet;
+import javax.swing.WindowConstants;
+
+import com.skcraft.launcher.swing.LinedBoxPanel;
+import com.skcraft.launcher.swing.MessageLog;
+import com.skcraft.launcher.swing.MessageLog.MessagePanel;
+import com.skcraft.launcher.swing.SwingHelper;
+import com.skcraft.launcher.util.PastebinPoster;
+import com.skcraft.launcher.util.SharedLocale;
+
+import lombok.Getter;
 import lombok.NonNull;
 import net.teamfruit.skcraft.launcher.appicon.AppIcon;
-import net.teamfruit.skcraft.launcher.discordrpc.LauncherStatus;
+import net.teamfruit.skcraft.launcher.discordrpc.LauncherDiscord;
 
-public class ConsoleFrame
-extends JFrame {
+/**
+ * A frame capable of showing messages.
+ */
+public class ConsoleFrame extends JFrame {
+
     private static ConsoleFrame globalFrame;
-    private final List<BufferedImage> trayRunningIcon;
-    private final List<BufferedImage> trayClosedIcon;
-    private final MessageLog messageLog;
-    private LinedBoxPanel buttonsPanel;
-    private boolean registeredGlobalLog = false;
-    private JButton clearLogButton;
-    private JButton pastebinButton;
 
+    @Getter private final List<BufferedImage> trayRunningIcon;
+    @Getter private final List<BufferedImage> trayClosedIcon;
+
+    @Getter private final MessageLog messageLog;
+    @Getter private LinedBoxPanel buttonsPanel;
+
+    private boolean registeredGlobalLog = false;
+
+	@Getter private JButton clearLogButton;
+	@Getter private JButton pastebinButton;
+
+    /**
+     * Construct the frame.
+     *
+     * @param numLines number of lines to show at a time
+     * @param colorEnabled true to enable a colored console
+     */
     public ConsoleFrame(int numLines, boolean colorEnabled) {
         this(SharedLocale.tr("console.title"), numLines, colorEnabled);
     }
 
+    /**
+     * Construct the frame.
+     *
+     * @param title the title of the window
+     * @param numLines number of lines to show at a time
+     * @param colorEnabled true to enable a colored console
+     */
     public ConsoleFrame(@NonNull String title, int numLines, boolean colorEnabled) {
-        if (title == null) {
-            throw new NullPointerException("title");
-        }
-        this.messageLog = new MessageLog(numLines, colorEnabled);
+        messageLog = new MessageLog(numLines, colorEnabled);
         List<BufferedImage> swingIconSet = AppIcon.getSwingIconSet(AppIcon.getAppIconSet());
-        this.trayRunningIcon = AppIcon.getSwingTaskIcon(swingIconSet, new Color(67, 181, 129));
-        this.trayClosedIcon = AppIcon.getSwingTaskIcon(swingIconSet, new Color(152, 41, 41));
-        this.setTitle(title);
-        AppIcon.setFrameIconSet(this, this.trayRunningIcon);
-        this.setSize(new Dimension(650, 400));
-        this.initComponents();
-        this.setDefaultCloseOperation(0);
-        this.addWindowListener(new WindowAdapter(){
+        trayRunningIcon = AppIcon.getSwingTaskIcon(swingIconSet, new Color(67, 181, 129));
+        trayClosedIcon = AppIcon.getSwingTaskIcon(swingIconSet, new Color(152, 41, 41));
 
+        setTitle(title);
+        AppIcon.setFrameIconSet(this, trayRunningIcon);
+
+        setSize(new Dimension(650, 400));
+        initComponents();
+
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent event) {
-                ConsoleFrame.this.performClose();
+                performClose();
             }
         });
     }
 
+    /**
+     * Add components to the frame.
+     */
     private void initComponents() {
         this.pastebinButton = new JButton(SharedLocale.tr("console.uploadLog"));
         this.clearLogButton = new JButton(SharedLocale.tr("console.clearLog"));
-        this.buttonsPanel = new LinedBoxPanel(true);
-        this.buttonsPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        this.buttonsPanel.addElement(this.pastebinButton);
-        this.buttonsPanel.addElement(this.clearLogButton);
-        this.buttonsPanel.addElement(this.messageLog.getSeeLastCheckbox());
-        this.add((Component)this.buttonsPanel, "North");
-        this.add((Component)this.messageLog, "Center");
-        this.clearLogButton.addActionListener(new ActionListener(){
+        buttonsPanel = new LinedBoxPanel(true);
 
+        buttonsPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        buttonsPanel.addElement(this.pastebinButton);
+        buttonsPanel.addElement(this.clearLogButton);
+        buttonsPanel.addElement(messageLog.getSeeLastCheckbox());
+
+        add(buttonsPanel, BorderLayout.NORTH);
+        add(messageLog, BorderLayout.CENTER);
+        this.clearLogButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ConsoleFrame.this.messageLog.clear();
+                messageLog.clear();
             }
         });
-        this.pastebinButton.addActionListener(new ActionListener(){
 
+        this.pastebinButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ConsoleFrame.this.pastebinLog();
+                pastebinLog();
             }
         });
-        this.addWindowListener(new WindowAdapter(){
 
-            @Override
-            public void windowActivated(WindowEvent e) {
-                LauncherStatus.instance.update();
-            }
-        });
+        addWindowListener(new WindowAdapter() {
+        	@Override
+        	public void windowActivated(WindowEvent e) {
+        		LauncherDiscord.updateStatusWithNoChange();
+        	}
+		});
     }
 
+    /**
+     * Register the global logger if it hasn't been registered.
+     */
     private void registerLoggerHandler() {
-        if (!this.registeredGlobalLog) {
-            this.getMessageLog().getMessage().registerLoggerHandler();
-            this.registeredGlobalLog = true;
+        if (!registeredGlobalLog) {
+            getMessageLog().getMessage().registerLoggerHandler();
+            registeredGlobalLog = true;
         }
     }
 
+    /**
+     * Attempt to perform window close.
+     */
     protected void performClose() {
-        this.messageLog.detachGlobalHandler();
-        this.messageLog.clear();
-        this.registeredGlobalLog = false;
-        this.dispose();
+        messageLog.detachGlobalHandler();
+        messageLog.clear();
+        registeredGlobalLog = false;
+        dispose();
     }
 
+    /**
+     * Send the contents of the message log to a pastebin.
+     */
     private void pastebinLog() {
-        Component selected = this.messageLog.getSelectedComponent();
-        if (selected instanceof MessageLog.MessagePanel) {
-            final MessageLog.MessagePanel message = (MessageLog.MessagePanel)selected;
-            String text = message.getPastableText();
-            message.log(SharedLocale.tr("console.pasteUploading", text.length()), this.messageLog.asHighlighted());
-            PastebinPoster.paste(text, new PastebinPoster.PasteCallback(){
+    	Component selected = messageLog.getSelectedComponent();
+    	if (selected instanceof MessagePanel) {
+    		final MessagePanel message = (MessagePanel) selected;
 
-                @Override
-                public void handleSuccess(String url) {
-                    message.log(SharedLocale.tr("console.pasteUploaded", url), ConsoleFrame.this.messageLog.asHighlighted());
-                    SwingHelper.openURL(url, (Component)message);
-                }
+	        String text = message.getPastableText();
+	        // Not really bytes!
+	        message.log(tr("console.pasteUploading", text.length()), messageLog.asHighlighted());
 
-                @Override
-                public void handleError(String err) {
-                    message.log(SharedLocale.tr("console.pasteFailed", err), ConsoleFrame.this.messageLog.asError());
-                }
-            });
-        }
+	        PastebinPoster.paste(text, new PastebinPoster.PasteCallback() {
+	            @Override
+	            public void handleSuccess(String url) {
+	                message.log(tr("console.pasteUploaded", url), messageLog.asHighlighted());
+	                SwingHelper.openURL(url, message);
+	            }
+
+	            @Override
+	            public void handleError(String err) {
+	                message.log(tr("console.pasteFailed", err), messageLog.asError());
+	            }
+	        });
+    	}
     }
 
     public static ConsoleFrame initMessages() {
         ConsoleFrame frame = globalFrame;
         if (frame == null) {
-            globalFrame = frame = new ConsoleFrame(10000, false);
+            frame = new ConsoleFrame(10000, false);
+            globalFrame = frame;
             frame.setTitle(SharedLocale.tr("console.launcherConsoleTitle"));
             frame.registerLoggerHandler();
         } else {
@@ -151,41 +190,15 @@ extends JFrame {
     }
 
     public static void showMessages() {
-        ConsoleFrame frame = ConsoleFrame.initMessages();
+        ConsoleFrame frame = initMessages();
         frame.setVisible(true);
         frame.requestFocus();
     }
 
     public static void hideMessages() {
         ConsoleFrame frame = globalFrame;
-        if (frame != null) {
-            frame.setVisible(false);
-        }
-    }
-
-    public List<BufferedImage> getTrayRunningIcon() {
-        return this.trayRunningIcon;
-    }
-
-    public List<BufferedImage> getTrayClosedIcon() {
-        return this.trayClosedIcon;
-    }
-
-    public MessageLog getMessageLog() {
-        return this.messageLog;
-    }
-
-    public LinedBoxPanel getButtonsPanel() {
-        return this.buttonsPanel;
-    }
-
-    public JButton getClearLogButton() {
-        return this.clearLogButton;
-    }
-
-    public JButton getPastebinButton() {
-        return this.pastebinButton;
+        if (frame != null)
+			frame.setVisible(false);
     }
 
 }
-
