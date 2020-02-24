@@ -10,8 +10,8 @@ jar {
 
 dependencies {
     compile project(':launcher')
-    compile 'org.tukaani:xz:1.0'
-    compile 'org.apache.commons:commons-compress:1.9'
+    compile 'org.tukaani:xz:1.8'
+    compile 'org.apache.commons:commons-compress:1.20'
 }
 
 shadowJar {
